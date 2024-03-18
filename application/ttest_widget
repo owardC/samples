@@ -39,7 +39,8 @@
 #define WIDGET_DIR_PATH_LEN_MAX         (256)
 #define WIDGET_TASK_STACK_SIZE          (2048)
 // Define the GPIO pin connected to the relay
-#define RELAY_PIN 17
+#define RELAY_PIN 18
+#define PWM_RANGE 100 // PWM range (0-100%)
 
 /* Private types -------------------------------------------------------------*/
 
@@ -194,12 +195,15 @@ __attribute__((weak)) void DjiTest_WidgetLogAppend(const char *fmt, ...)
 static void *DjiTest_WidgetTask(void *arg)
 {
     // Initialize WiringPi library
-    if (wiringPiSetupGpio() == -1) {
+    if (wiringPiSetup() == -1) {
         printf("Failed to initialize WiringPi\n");
         return 1;
     }
-    // Set the relay pin as output
-    pinMode(RELAY_PIN, OUTPUT);
+     // Setup PWM pin
+    pinMode(RELAY_PIN, PWM_OUTPUT);
+    pwmSetMode(PWM_MODE_MS); // Set PWM mode to mark-space (default)
+    pwmSetClock(384); // Set PWM clock (19.2MHz base clock / 384 = 50kHz)
+    pwmSetRange(PWM_RANGE); // Set PWM range (0-100%)
     char message[DJI_WIDGET_FLOATING_WINDOW_MSG_MAX_LEN];
     uint32_t sysTimeMs = 0;
     T_DjiReturnCode djiStat;
@@ -246,9 +250,9 @@ static T_DjiReturnCode DjiTestWidget_SetWidgetValue(E_DjiWidgetType widgetType, 
                   s_widgetTypeNameArray[widgetType], index, value);
     s_widgetValueList[index] = value;
     if(value == 1){
-    digitalWrite(RELAY_PIN, HIGH);  // Turn on the relay
+     pwmWrite(RELAY_PIN, PWM_RANGE / 2); // Set duty cycle to 50%
     }else{
-    digitalWrite(RELAY_PIN, LOW);   // Turn off the relay
+     pwmWrite(RELAY_PIN, 0); // Turn off the relay (set duty cycle to 0)
     }
 
     return DJI_ERROR_SYSTEM_MODULE_CODE_SUCCESS;
